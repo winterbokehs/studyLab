@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd">
+
+<!--    id为变量名,在引用时调用的唯一标记
+        class为该id所要绑定的JavaBean对象的路径，对象名
+        property相当于 给对象的属性设置值
+        {
+               name为对象的属性名，value为给属性名设置值
+                }
+        bean里面的name可以给id设置别名
+      -->
+   <bean id="hello" class="com.me.pojo.hello" name="hello2">
+       <property name="str" value="hello spring"/>
+   </bean>
+
+    <bean id="dbStr" class="com.me.pojo.DB">
+        <property name="dbStr" value="this is my spring test!"/>
+    </bean>
+
+
+    <!--有参构造器的创建方式-->
+    <bean id="DB" class="com.me.pojo.DB">
+        <constructor-arg name="dbStr" value="yys"/>
+    </bean>
+</beans>
