@@ -2098,3 +2098,1024 @@ public void testQueryMathAll() throws UnknownHostException, ExecutionException, 
 ```
 
 ### 2. From Size分页查询
+
+分页查询
+
+- From 从那条记录开始 默认从0 开始 from = (pageNow-1)*size
+- Size 每次返回多少条符合条件的结果 默认10
+
+注意是将查询后的结果进行分页
+
+```java
+        //分页查询文档
+        SearchResponse searchResponse = client.prepareSearch("ems")
+                .setTypes("emp")
+                .setQuery(QueryBuilders.matchAllQuery())
+                .setFrom(0)  //设置起始页
+                .setSize(3)  //设置每页的条数
+                .get();
+```
+
+### 3. source 查询返回字段
+
+```java
+/**
+ *  查询返回指定字段(source) 默认返回所有:
+ *      setFetchSource 参数1:包含哪些字段   参数2:排除哪些字段
+ *      setFetchSource("*","age")  返回所有字段  除了age字段
+ *      setFetchSource("name","")  只返回name字段
+ *      setFetchSource(new String[]{"name","age"},new String[]{""})  只返回name 和age
+ */
+
+```
+
+```java
+ SearchResponse searchResponse = client.prepareSearch("ems")
+                .setTypes("emp")
+                .setQuery(QueryBuilders.matchAllQuery())
+                .setFetchSource("*","age")  //设置指定的返回字段
+                .get();
+```
+
+### _. 方法模板
+
+后面几个由于其写法大致差不多，只是传入查询的类型不一样，我将其封装为一个方法，到时候根据查询的不同传入不同的参数即可
+
+```java
+@Test
+    public void testQuery(QueryBuilder query) throws UnknownHostException {
+        TransportClient client = new PreBuiltTransportClient(Settings.EMPTY);
+        client.addTransportAddress(new TransportAddress(InetAddress.getByName("192.168.47.128"), 9300));
+        //查询所有文档
+        SearchResponse searchResponse = client.prepareSearch("ems")
+                .setTypes("emp")
+                .setQuery(query)   //封装了查询的条件
+                .get();
+
+        System.out.println("符合的总条数为：" + searchResponse.getHits().getTotalHits());
+        System.out.println("最高的得分" + searchResponse.getHits().getMaxScore());
+        System.out.println("============记录============");
+        SearchHit[] hits = searchResponse.getHits().getHits();
+        for (SearchHit hit : hits) {
+            System.out.println("当前记录的得分：" + hit.getScore());
+            System.out.println("[字符串形式打印]====>" + hit.getSourceAsString());
+            System.out.println("[map集合形式打印]====>" + hit.getSourceAsMap());
+        }
+        client.close();
+    }
+```
+
+### 4. term 指定查询
+
+查询指定字段含有指定值
+
+```java
+@Test
+public void testTermQuery() throws UnknownHostException {
+    TermQueryBuilder termQueryBuilder = QueryBuilders.termQuery("name","黑");
+  
+        testQuery(termQueryBuilder);
+   
+}
+```
+
+### 5.multiMatch多字段查询
+
+```java
+       //多字段查询
+        MultiMatchQueryBuilder multiMatchQueryBuilder = QueryBuilders.multiMatchQuery("框架", "name", "content");
+
+   testQuery(multiMatchQueryBuilder);
+```
+
+
+
+### 6. range 范围查询
+
+```java
+/**
+*  rang查询
+*     lt    小于
+*     lte   小于等于
+*     gt    大于
+*     gte   大于等于
+*/ 
+
+
+@Test
+    public void testRangeQuery() throws UnknownHostException {
+        RangeQueryBuilder queryBuilder = QueryBuilders.rangeQuery("age").gte(10).lte(30);
+
+        testQuery(queryBuilder);
+
+    }
+```
+
+### 7.prefix 前缀查询
+
+查询指定属性[根据是否分词后的结果]是否含有指定的前缀
+
+```java
+@Test
+public void testPrefix() throws UnknownHostException {
+    PrefixQueryBuilder prefixQueryBuilder = QueryBuilders.prefixQuery("name", "小");
+    testQuery(prefixQueryBuilder);
+}
+
+```
+
+### 8.wildcard 通配符查询
+
+根据通配符类型进行补全后查询
+
+- ? ：补全一个字符
+- *：补全任意字符
+
+```java
+@Test
+public void testWildcardQuery() throws UnknownHostException {
+    WildcardQueryBuilder wildcardQuery = QueryBuilders.wildcardQuery("content", "小*");
+    testQuery(wildcardQuery);
+}
+
+```
+
+### 9.Ids 指定id查询
+
+注意：这里要查询的id紧跟后面书写
+
+```java
+@Test
+public void testIds() throws UnknownHostException {
+    IdsQueryBuilder queryBuilder = QueryBuilders.idsQuery().addIds("1","3");
+    testQuery(queryBuilder);
+}
+
+```
+
+### 10.fuzzy 模糊查询
+
+根据查询的大小，可以模糊不同的个数
+
+- 查询的个数0-2：必须和ES的词条完全匹配
+- 3-5：可以模糊一个
+- 大于5：可以模糊两个
+
+```java
+Test
+    public void testFuzzy() throws UnknownHostException {
+    FuzzyQueryBuilder fuzzyQueryBuilder = QueryBuilders.fuzzyQuery("content", "努力");
+    testQuery(fuzzyQueryBuilder);
+}
+
+```
+
+### 11.bool 复杂查询
+
+可以有不同组合：传入的参数为同一类型
+
+- must()：查询必须满足的
+- mustNot()：查询相反的
+- should()：只要满足就行
+
+```java
+@Test
+public void testBool() throws UnknownHostException {
+    BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+    boolQueryBuilder.must(QueryBuilders.termQuery("age","30"));
+    boolQueryBuilder.should(QueryBuilders.prefixQuery("content","努"));
+    testQuery(boolQueryBuilder);
+}
+
+```
+
+### 12.高亮查询
+
+#### 高亮配置
+
+```java
+/**
+     * 高亮查询
+     *  .highlighter(highlightBuilder) 用来指定高亮设置
+     *  requireFieldMatch(false) 开启多个字段高亮 [默认只高亮匹配部分]
+     *  field 用来定义高亮字段
+     *  preTags("<span style='color:red'>")  用来指定高亮前缀
+     *  postTags("</span>") 用来指定高亮后缀
+     */
+
+```
+
+```java
+@Test
+public void testHighlight() throws UnknownHostException {
+
+    //===>高亮配置
+    HighlightBuilder highlightBuilder = new HighlightBuilder();
+    highlightBuilder.requireFieldMatch(false);//默认只渲染匹配的字段
+    highlightBuilder.field("name");
+    highlightBuilder.field("content");
+    highlightBuilder.preTags("<span style='color:red'>");
+    highlightBuilder.postTags("</span>");
+
+    //创建连接
+    TransportClient transportClient = new PreBuiltTransportClient(Settings.EMPTY);
+    transportClient.addTransportAddress(new TransportAddress(InetAddress.getByName("192.168.47.128"), 9300));
+    //查询所有文档
+    SearchResponse searchResponse = transportClient.prepareSearch("ems")//索引
+        .setTypes("emp")//类型
+        .setQuery(QueryBuilders.termQuery("content","努力")) //====>
+        .highlighter(highlightBuilder)//====>
+        .get();//开始查询
+    System.out.println("符合条件的总条数:" + searchResponse.getHits().getTotalHits());
+    System.out.println("最高得分:" + searchResponse.getHits().getMaxScore());
+    System.out.println("详细记录如下：");
+    SearchHit[] hits = searchResponse.getHits().getHits();
+    for (SearchHit h : hits) {
+        System.out.println("当前索引分数:" + h.getScore());
+        System.out.println("[字符串形式打印]====>" + h.getSourceAsString());
+        System.out.println("[map集合形式打印]====>" + h.getSourceAsMap());
+    }
+    //关闭连接
+    transportClient.close();
+}
+
+```
+
+
+
+
+
+#### 回显高亮数据
+
+高亮数据和原数据是分开显示的，如何将高亮部分存入对象：先将原数据存入对象，再把高亮部分遍历出来替换掉需要高亮显示的部分
+
+```java
+@Test
+public void testHighlight() throws UnknownHostException {
+
+
+    //用于储存数据:===>
+    List<Emp> list = new ArrayList<>();
+
+    HighlightBuilder highlightBuilder = new HighlightBuilder();
+    highlightBuilder.requireFieldMatch(false);//默认只渲染匹配的字段
+    highlightBuilder.field("name");
+    highlightBuilder.field("content");
+    highlightBuilder.preTags("<span style='color:red'>");
+    highlightBuilder.postTags("</span>");
+
+    //创建连接
+    TransportClient transportClient = new PreBuiltTransportClient(Settings.EMPTY);
+    transportClient.addTransportAddress(new TransportAddress(InetAddress.getByName("192.168.47.128"), 9300));
+    //查询所有文档
+    SearchResponse searchResponse = transportClient.prepareSearch("ems")//索引
+        .setTypes("emp")//类型
+        .setQuery(QueryBuilders.termQuery("content", "努力")) //====>
+        .highlighter(highlightBuilder)//====>
+        .get();//开始查询
+    System.out.println("符合条件的总条数:" + searchResponse.getHits().getTotalHits());
+    System.out.println("最高得分:" + searchResponse.getHits().getMaxScore());
+    System.out.println("详细记录如下：");
+    SearchHit[] hits = searchResponse.getHits().getHits();
+    for (SearchHit h : hits) {
+        System.out.println("当前索引分数:" + h.getScore());
+        System.out.println("[字符串形式打印]====>" + h.getSourceAsString());
+        System.out.println("[map集合形式打印]====>" + h.getSourceAsMap());
+
+        //打印高亮部分
+        System.out.println(h.getHighlightFields());
+
+        //原数据
+        Emp emp = new Emp();
+        emp.setName((String) h.getSourceAsMap().get("name"));
+        emp.setAge((Integer) h.getSourceAsMap().get("age"));
+        emp.setAddress((String) h.getSourceAsMap().get("address"));
+
+        //高亮数据
+        Map<String, HighlightField> highlightFields = h.getHighlightFields();
+        if (highlightFields.containsKey("name")) {
+            String nameHigh = highlightFields.get("name").fragments()[0].toString();
+            //替换
+            emp.setName(nameHigh);
+        }
+        if (highlightFields.containsKey("content")) {
+            String contentHigh = highlightFields.get("content").fragments()[0].toString();
+            emp.setContent(contentHigh);
+        }
+        list.add(emp);
+    }
+    //遍历集合
+    System.out.println("对象方式显示高亮部分===>:");
+    list.forEach(emp -> {
+        System.out.println(emp);
+    });
+
+    //关闭连接
+    transportClient.close();
+}
+
+```
+
+## 3.FilterQuery 过滤查询
+
+过滤查询主要用于查询执行之前对大量数据进行筛选，传入过滤后的数据
+
+```java
+@Test
+public void testFilterQuery() throws UnknownHostException {
+
+    //创建连接
+    TransportClient transportClient = new PreBuiltTransportClient(Settings.EMPTY);
+    transportClient.addTransportAddress(new TransportAddress(InetAddress.getByName("192.168.47.128"), 9300));
+    //查询所有文档
+    SearchResponse searchResponse = transportClient.prepareSearch("ems")//索引
+        .setTypes("emp")//类型
+        .setPostFilter(QueryBuilders.rangeQuery("age").gte(21).lte(30))//===>过滤
+        .setQuery(QueryBuilders.matchAllQuery()) //===>传入查询的类型
+        .get();//开始查询
+    System.out.println("符合条件的总条数:" + searchResponse.getHits().getTotalHits());
+    System.out.println("最高得分:" + searchResponse.getHits().getMaxScore());
+    System.out.println("详细记录如下：");
+    SearchHit[] hits = searchResponse.getHits().getHits();
+    for (SearchHit h : hits) {
+        System.out.println("当前索引分数:" + h.getScore());
+        System.out.println("[字符串形式打印]====>" + h.getSourceAsString());
+        System.out.println("[map集合形式打印]====>" + h.getSourceAsMap());
+    }
+    //关闭连接
+    transportClient.close();
+}
+
+```
+
+# 14.SpringBoot Data操作ES 6.8.0
+
+## 1.环境搭建
+
+> 引入依赖
+
+`注意如果你使用自动引入依赖，默认使用的springboot版本为最新的，需要将版本改低一点！！！`
+
+```xml
+        <!--elasticsearch for springboot-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+        </dependency>
+```
+
+> 配置类
+>
+> spring-data(新版本推荐配置) RestHighLevelClient rest客户端 ElasticSearchRespositoy接口
+
+```java
+@Configuration
+public class RestClientConfig extends AbstractElasticsearchConfiguration {
+
+    @Override
+    @Bean
+    //RestHighLevelClient用来替换transportClient
+    public RestHighLevelClient elasticsearchClient() {
+        final ClientConfiguration clientConfiguration = ClientConfiguration.builder()
+            .connectedTo("192.168.47.128:9200")  //===>与kibana客户端类型都是restful分格,都是连接9200端口
+            .build();
+        return RestClients.create(clientConfiguration).rest();
+    }
+
+}
+```
+
+## 2.ElasticSearchRespositoy 实现基本crud
+
+> 实体类
+
+ES操作相关的实体类，可以只需要业务实体类的某一些字段
+
+@Document  :  代表一个文档记录
+
+ indexName  :  用来指定索引名称
+
+ type  :  用来指定索引类型
+
+@Id  :  用来将对象中id和ES中_id映射
+
+@Field  :  用来指定ES中的字段对应Mapping
+
+ type  :  用来指定ES中存储类型
+
+ analyzer  :  用来指定使用哪种分词器
+
+
+
+```java
+/**
+ * [用在类上]作用: 将Emp的对象映射成ES中一条json格式文档
+ * 			indexName  : 用来指定这个对象的转为json文档存入那个索引中 要求:ES服务器中之前不能存在此索引名
+ * 			type     : 用来指定在当前这个索引下创建的类型名称
+ */
+@Document(indexName = "ems", type = "emp")
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class Emp {
+
+    @Id //与ES中_id进行映射
+    private String id;
+
+    /**
+     * @Description: 用在属性上 代表mapping中一个属性 一个字段
+     * type:属性 用来指定字段类型 analyzer:指定分词器
+     * 
+     * 
+     */
+    @Field(type = FieldType.Text, analyzer = "ik_max_word")
+    private String name;
+
+    @Field(type = FieldType.Integer)
+    private Integer age;
+
+    @Field(type = FieldType.Date)
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date bir;
+
+    @Field(type = FieldType.Text, analyzer = "ik_max_word")
+    private String content;
+
+    @Field(type = FieldType.Keyword)
+    private String address;
+}
+
+```
+
+>  **通用接口**
+> 对一些简单的crud操作，可以使用 ElasticSearchRespositoy 接口
+
+```java
+/**
+
+ * @Description: ElasticsearchRepository ：ES提供的操作CRUD接口
+ * 第一个参数：指定对象类型
+ * 第二个参数：ID类型
+ * @Date Created in 2020-12-30 14:23
+ * @Modified By:
+   */
+   public interface EmpRepository extends ElasticsearchRepository<Emp,String> {
+   }
+```
+
+#### 添加or更新一条记录
+
+这种方式根据实体类中中配置自动在ES创建索引,类型以及映射
+
+- 不传入id表示添加操作，会自动生成id
+- 传入id，ES中有此id表示更新，没有表示添加
+
+```java
+ @Autowired
+    EmpRepository empRepository;
+
+    @Test
+    public void testSaveOrUpdate(){
+        Emp emp = new Emp();
+        emp.setId("1");
+        emp.setName("asdas");
+        emp.setAge(23);
+        emp.setAddress("asdaqweqwe");
+        emp.setContent("氨基酸的空间安徽省");
+        emp.setBir(new Date());
+        empRepository.save(emp);
+
+    }
+```
+
+#### 删除一条记录
+
+两种方式：根据id，根据对象属性值
+
+```java
+@Test
+public void testDelete(){
+    Book book = new Book();
+    book.setId("21");
+    bookRespistory.delete(book);
+     
+    //根据id删除 id为1的记录
+      empRepository.deleteById("1");
+}
+
+```
+
+#### 查询
+
+```java
+/**
+*  查询一个
+*/
+@Test
+public void testFindOne(){
+     Optional<Emp> emp = empRepository.findById("Go9Q93gBXuyUwuaOXpx0");
+        System.out.println(emp);
+}
+
+/**
+*  查询所有
+*/
+@Test
+public void testFindAll(){
+           Iterable<Emp> emps = empRepository.findAll();
+        for (Emp emp : emps) {
+            System.out.println(emp);
+        }
+}
+
+```
+
+#### 查询并排序
+
+```java
+    
+    //年龄降序
+    @Test
+    public void testFindAllOrder(){
+        Iterable<Emp> all = empRepository.findAll(Sort.by(Sort.Order.desc("age")));
+        for (Emp emp : all) {
+            System.out.println(emp);
+        }
+    }
+
+```
+
+#### 自定义基本查询
+
+通过 ElasticsearchRepository 接口除了ES提供的api还可以在自定义接口中自定义一些查询的方法
+
+| Keyword                           | Sample                                  |                  Elasticsearch Query String                  |
+| --------------------------------- | --------------------------------------- | :----------------------------------------------------------: |
+| `And`：同时满足                   | `findByNameAndPrice`                    | `{"bool" : {"must" : [ {"field" : {"name" : "?"}}, {"field" : {"price" : "?"}} ]}}` |
+| `Or`：满足其一                    | `findByNameOrPrice`                     | `{"bool" : {"should" : [ {"field" : {"name" : "?"}}, {"field" : {"price" : "?"}} ]}}` |
+| `Is`：据某个字段查询              | `findByName`                            |      `{"bool" : {"must" : {"field" : {"name" : "?"}}}}`      |
+| `Not`：不包含                     | `findByNameNot`                         |    `{"bool" : {"must_not" : {"field" : {"name" : "?"}}}}`    |
+| `Between`：某个字段在某个范围之间 | `findByPriceBetween`                    | `{"bool" : {"must" : {"range" : {"price" : {"from" : ?,"to" : ?,"include_lower" : true,"include_upper" : true}}}}}` |
+| `LessThanEqual`：<=               | `findByPriceLessThanEqual`              | `{"bool" : {"must" : {"range" : {"price" : {"from" : null,"to" : ?,"include_lower" : true,"include_upper" : true}}}}}` |
+| `GreaterThanEqual`：>=            | `findByPriceGreaterThanEqual`           | `{"bool" : {"must" : {"range" : {"price" : {"from" : ?,"to" : null,"include_lower" : true,"include_upper" : true}}}}}` |
+| `Before`：…之前                   | `findByPriceBefore`                     | `{"bool" : {"must" : {"range" : {"price" : {"from" : null,"to" : ?,"include_lower" : true,"include_upper" : true}}}}}` |
+| `After`：…之后                    | `findByPriceAfter`                      | `{"bool" : {"must" : {"range" : {"price" : {"from" : ?,"to" : null,"include_lower" : true,"include_upper" : true}}}}}` |
+| `Like`：模糊匹配                  | `findByNameLike`                        | `{"bool" : {"must" : {"field" : {"name" : {"query" : "?*","analyze_wildcard" : true}}}}}` |
+| `StartingWith`                    | `findByNameStartingWith`                | `{"bool" : {"must" : {"field" : {"name" : {"query" : "?*","analyze_wildcard" : true}}}}}` |
+| `EndingWith`                      | `findByNameEndingWith`                  | `{"bool" : {"must" : {"field" : {"name" : {"query" : "*?","analyze_wildcard" : true}}}}}` |
+| `Contains/Containing`             | `findByNameContaining`                  | `{"bool" : {"must" : {"field" : {"name" : {"query" : "**?**","analyze_wildcard" : true}}}}}` |
+| `In`                              | `findByNameIn` `(Collectionnames)`      | `{"bool" : {"must" : {"bool" : {"should" : [ {"field" : {"name" : "?"}}, {"field" : {"name" : "?"}} ]}}}}` |
+| `NotIn`                           | `findByNameNotIn` `(Collectionnames)`   | `{"bool" : {"must_not" : {"bool" : {"should" : {"field" : {"name" : "?"}}}}}}` |
+| `Near`                            | `findByStoreNear`                       |                    `Not Supported Yet !`                     |
+| `True`                            | `findByAvailableTrue`                   |   `{"bool" : {"must" : {"field" : {"available" : true}}}}`   |
+| `False`                           | `findByAvailableFalse`                  |  `{"bool" : {"must" : {"field" : {"available" : false}}}}`   |
+| `OrderBy`                         | `findByAvailable` `TrueOrderByNameDesc` | `{"sort" : [{ "name" : {"order" : "desc"} }],"bool" : {"must" : {"field" : {"available" : true}}}}` |
+
+**eg   :**    
+
+```java
+public interface BookRepository extends ElasticsearchRepository<Emp,String > {
+
+    //根据作者查询
+   List<Emp> findByName(String name);
+
+    //根据内容查询
+    List<Book> findByContent(String keyword);
+
+    //根据内容和名字查
+    List<Book> findByNameAndContent(String name,String content);
+
+    //根据内容或名称查询
+    List<Book> findByNameOrContent(String name,String content);
+
+    //范围查询
+    List<Book> findByPriceBetween(Double start,Double end);
+
+    //查询名字以xx开始的
+    List<Book>  findByNameStartingWith(String name);
+
+    //查询某个字段值是否为false
+    List<Book>  findByNameFalse();
+
+    //.......
+    
+    //根据名字查询，然后 根据Pageable 参数进行分页
+    //调用时： Pageable pageable = PageRequest.of(1,1);
+    //        List<Emp> content = empRepository.findByContent("框架", pageable);
+    List<Emp> findByContent(String name, Pageable pageable);
+}
+
+```
+
+
+
+## 3.RestHighLevelClient 实现复杂查询
+
+### 分页查询并排序
+
+```java
+ @Autowired
+  private RestHighLevelClient restHighLevelClient;
+
+@Test
+public void testSearchPage() throws IOException {
+    //查询请求
+    SearchRequest searchRequest = new SearchRequest();
+
+    //查询条件
+    SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+    sourceBuilder.from(0).size(2).sort("age", SortOrder.ASC).query(QueryBuilders.matchAllQuery());
+
+    //去哪个索引/类型查询
+    searchRequest.indices("ems").types("emp").source(sourceBuilder);
+
+    //====>查询方法
+    SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+
+    SearchHit[] hits = search.getHits().getHits();
+    for (SearchHit hit : hits) {
+        //字符串格式展示
+        System.out.println(hit.getSourceAsString());
+    }
+}
+
+```
+
+### 高亮查询
+
+```java
+@Test
+public void testLight() throws IOException {
+
+    //集合存放查找到的数据
+    List<Emp> list = new ArrayList<>();
+
+    //查询请求
+    SearchRequest searchRequest = new SearchRequest();
+
+    //查询条件[对象]
+    SearchSourceBuilder builder = new SearchSourceBuilder();
+
+    //高亮配置
+    HighlightBuilder highlightBuilder = new HighlightBuilder();
+    highlightBuilder.field("*").requireFieldMatch(false).preTags("<span style='color:red'>").postTags("</span>");
+
+    //具体按...查询
+    builder.from(0).size(2)
+        .sort("age", SortOrder.DESC)
+        .highlighter(highlightBuilder)
+        .query(QueryBuilders.multiMatchQuery("小黑喜欢小红", "name", "content"));
+
+    //从哪个索引/类型查找
+    searchRequest.indices("ems").types("emp").source(builder);
+
+    //===>查询方法
+    SearchResponse searchResponse = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+
+    System.out.println("符合条件总数:" + searchResponse.getHits().getTotalHits());
+    System.out.println("最大得分:" + searchResponse.getHits().getMaxScore());
+
+    System.out.println("每条文档详细信息===>");
+    SearchHit[] hits = searchResponse.getHits().getHits();
+    for (SearchHit s :hits) {
+        //===>原文档部分
+        System.out.println(s.getSourceAsMap());
+        //返回对象
+        Emp emp = new Emp();
+        emp.setId((String) s.getSourceAsMap().get("id"));
+        emp.setName((String) s.getSourceAsMap().get("name"));
+        emp.setContent((String) s.getSourceAsMap().get("content"));
+        emp.setAddress((String) s.getSourceAsMap().get("address"));
+        emp.setAge((Integer) s.getSourceAsMap().get("age"));
+
+        //==>高亮部分
+        Map<String, HighlightField> highlightFields = s.getHighlightFields();
+        if(highlightFields.containsKey("name")){
+            emp.setName(highlightFields.get("name").fragments()[0].toString());
+        }
+        if(highlightFields.containsKey("content")){
+            emp.setContent(highlightFields.get("content").fragments()[0].toString());
+        }
+        list.add(emp);
+    }
+    //===>存入对象的文档[包括高亮部分]
+    System.out.println("===>存入对象的文档[包括高亮部分]");
+    list.forEach(emp -> {
+        System.out.println(emp);
+    });
+
+}
+
+```
+
+![image-20210422105213585](ElasticSearch学习.assets/image-20210422105213585.png)
+
+# 15.搭建 ElasticSearch 集群
+
+## 相关概念
+
+### 集群(cluster)
+
+> **是什么**
+
+一个集群就是由一个或多个节点组织在一起，它们共同持有你整个的数据，并一起提供索引和搜索功能。一个集群 由一个唯一的名字标识，这个名字默认就是elasticsearch。这个名字是重要的，因为一个节点只能通过指定某个集群的名字，来加入这个集群。在产品环境中显式地设定这个名字是一个好习惯，但是使用默认值来进行测试/开发也是不错的。
+
+> **能干嘛**
+
+1.单节点压力问题 并发压力 物理资源上限压力
+
+2.数据冗余备份能力
+
+### 节点(node)
+
+> **是什么**
+
+一个节点是你集群中的一个服务器，作为集群的一部分，它存储你的数据，参与集群的索引和搜索功能。和集群类似，一个节点也是由一个名字来标识的，默认情况下，这个名字是一个随机的漫威漫画角色的名字，这个名字会在启动的时候赋予节点。这个名字对于管理工作来说挺重要的，因为在这个管理过程中，你会去确定网络中的哪些服务器对应于Elasticsearch集群中的哪些节点。
+
+> **能干嘛**
+
+
+一个节点可以通过配置集群名称的方式来加入一个指定的集群。默认情况下，每个节点都会被安排加入到一个叫 做“elasticsearch”的集群中，这意味着，如果你在你的网络中启动了若干个节点，并假定它们能够相互发现彼此，它们将会自动地形成并加入到一个叫做“elasticsearch”的集群中。
+
+在一个集群里，只要你想，可以拥有任意多个节点。而且，如果当前你的网络中没有运行任何Elasticsearch节点， 这时启动一个节点，会默认创建并加入一个叫做“elasticsearch”的集群。
+
+### 分片和复制(shards & replicas)
+
+> 分片是什么
+
+一个索引可以存储超出单个结点硬件限制的大量数据。比如，一个具有10亿文档的索引占据1TB的磁盘空间，而任一节点都没有这样大的磁盘空间;或者单个节点处理搜索请求，响应太慢。为了解决这个问题，Elasticsearch提供了将索引划分成多份的能力，这些份就叫做分片。当你创建一个索引的时候，你可以指定你想要的分片的数量。每个分片本身也是一个功能完善并且独立的“索引”，这个“索引”可以被放置 到集群中的任何节点上。
+
+![在这里插入图片描述](ElasticSearch学习.assets/2020123109503272.png)
+
+分片之所以重要，主要有两方面的原因:
+
+允许你水平分割/扩展你的内容容量允许你在分片(潜在地，位于多个节点上)之上进行分布式的、并行的操作，进而提高性能/吞吐量 至于一个分片怎样分布，它的文档怎样聚合回搜索请求，是完全由Elasticsearch管理的，对于作为用户的你来说，这些都是透明的。
+
+> 复制是什么
+
+在一个网络/云的环境里，失败随时都可能发生，在某个分片/节点不知怎么的就处于离线状态，或者由于任何原因 消失了。这种情况下，有一个故障转移机制是非常有用并且是强烈推荐的。为此目的，**Elasticsearch允许你创建分片的一份或多份拷贝，这些拷贝叫做复制分片，或者直接叫复制**。 复制之所以重要，主要有两方面的原因:
+
+在分片/节点失败的情况下，提供了高可用性。**因为这个原因，注意到复制分片从不与原/主要 (original/primary)分片置于同一节点上是非常重要的**。 扩展你的搜索量/吞吐量，因为搜索可以在所有的复制上并行运行
+
+总之，每个索引可以被分成多个分片。一个索引也可以被复制0次(意思是没有复制)或多次。一旦复制了，每个索引就有了主分片(作为复制源的原来的分片)和复制分片(主分片的拷贝)之别。分片和复制的数量可以在索引创建的时候指定。在索引创建之后，你可以在任何时候动态地改变复制数量，但是不能改变分片的数量。
+
+默认情况下，**Elasticsearch 7 之前ES中的每个索引被分片5个主分片和1个复制，这意味着，如果你的集群中至少有两个节点，你的索引将会有5个主分片和另外5个复制分片(1个完全拷贝)，这样的话每个索引总共就有10个分片。**一个 索引的多个分片可以存放在集群中的一台主机上，也可以存放在多台主机上，这取决于你的集群机器数量。主分片和复制分片的具体位置是由ES内在的策略所决定的。
+
+### 集群架构图
+
+![在这里插入图片描述](ElasticSearch学习.assets/20201231095219585.png)
+
+## 环境搭建
+
+#### 1、将原有ES安装包复制三份
+
+```markdown
+cp -r elasticsearch-6.8.0/  es_node1/
+cp -r elasticsearch-6.8.0/  es_node2/
+cp -r elasticsearch-6.8.0/  es_node3/
+```
+
+#### 2. 删除复制目录中data目录
+
+由于复制目录之前使用过因此需要在创建集群时将原来数据删除
+
+**注意:** 如果你是重新安装的ES，这个步骤可以省略
+
+但是如果你之前安装过IK分词器，建议你直接复制，这样就可以省略重新去安装IK分词器
+
+```markdown
+rm -rf es_node1/data
+rm -rf es_node2/data
+rm -rf es_node3/data
+
+```
+
+#### 3、调整JVM内存
+
+由于ES启动时比较消耗内存，需要进行调整，你有两种方式可以选择：
+
+- 第一种：调大虚拟机分配的内存
+- 第二种：调整ES所占用内存
+
+这里选择第二种
+
+编辑没有文件夹中config目录中jvm.options文件跳转启动内存
+
+```markdown
+vim es_node1/config/jvm.options  
+vim es_node2/config/jvm.options
+vim es_node3/config/jvm.options
+
+```
+
+分别调整为：[根据个人虚拟机情况调整，我这里虚拟机分配了1G，我有三台ES,所以选择分配300m]
+
+```makefile
+-Xms300m -Xmx300m
+```
+
+#### 4、集群配置
+
+分别修改三个文件夹中config目录中elasticsearch.yml文件
+
+```markdown
+
+
+vim es_node1/config/elasticsearch.yml
+vim es_node2/config/elasticsearch.yml
+vim es_node3/config/elasticsearch.yml
+```
+
+
+分别修改如下配置:
+
+第一台
+
+```properties
+#集群名称(集群名称必须一致)
+cluster.name: es  
+
+#节点名称(节点名称不能一致)
+node.name: node1  
+
+ #监听地址(必须开启远程权限,并关闭防火墙)
+network.host: 0.0.0.0     
+
+#监听端口(在一台机器时服务端口不能一致)
+http.port: 9201                           	
+
+#另外两个节点的ip
+discovery.zen.ping.unicast.hosts: ["192.168.77.138:9302", "192.168.77.138:9303"]  	
+
+#集群可做master的最小节点数	
+gateway.recover_after_nodes: 3    
+
+ #集群TCP端口(在一台机器搭建必须修改)  
+transport.tcp.port: 9301				  						
+```
+
+第二台
+
+```properties
+#集群名称(集群名称必须一致)
+cluster.name: es  
+
+#节点名称(节点名称不能一致)
+node.name: node2
+
+ #监听地址(必须开启远程权限,并关闭防火墙)
+network.host: 0.0.0.0     
+
+#监听端口(在一台机器时服务端口不能一致)
+http.port: 9202                        	
+
+#另外两个节点的ip
+discovery.zen.ping.unicast.hosts: ["192.168.77.138:9301", "192.168.77.138:9303"]  	
+
+#集群可做master的最小节点数	
+gateway.recover_after_nodes: 3    
+
+ #集群TCP端口(在一台机器搭建必须修改)  
+transport.tcp.port: 9302				  						
+```
+
+第三台
+
+```properties
+#集群名称(集群名称必须一致)
+cluster.name: es  
+
+#节点名称(节点名称不能一致)
+node.name: node3 
+
+ #监听地址(必须开启远程权限,并关闭防火墙)
+network.host: 0.0.0.0     
+
+#监听端口(在一台机器时服务端口不能一致)
+http.port: 9203                         	
+
+#另外两个节点的ip
+discovery.zen.ping.unicast.hosts: ["192.168.77.138:9301", "192.168.77.138:9302"]  	
+
+#集群可做master的最小节点数	
+gateway.recover_after_nodes: 3    
+
+ #集群TCP端口(在一台机器搭建必须修改)  
+transport.tcp.port: 9303				  						
+```
+
+**注意：**
+
+- 监听端口是指web页面访问的端口，TCP端口是集群服务器之间通信用的端口
+- transport.tcp.port需要在末尾自己添加
+
+#### 5、启动ElasticSearch
+
+切换到非root身份，启动多个es
+
+```
+./es_node1/bin/elasticsearch
+./es_node2/bin/elasticsearch
+./es_node3/bin/elasticsearch
+```
+
+**启动报错：解决**
+
+```markdown
+[admin@localhost bin]$ ./elasticsearch
+Exception in thread "main" java.nio.file.AccessDeniedException: /home/leyou/elasticsearch/config/jvm.options
+        at sun.nio.fs.UnixException.translateToIOException(UnixException.java:84)
+        at sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:102)
+        at sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:107)
+        at sun.nio.fs.UnixFileSystemProvider.newByteChannel(UnixFileSystemProvider.java:214)
+        at java.nio.file.Files.newByteChannel(Files.java:361)
+        at java.nio.file.Files.newByteChannel(Files.java:407)
+        at java.nio.file.spi.FileSystemProvider.newInputStream(FileSystemProvider.java:384)
+        at java.nio.file.Files.newInputStream(Files.java:152)
+        at org.elasticsearch.tools.launchers.JvmOptionsParser.main(JvmOptionsParser.java:58)
+
+```
+
+**出现原因：**
+
+Elasticsearch不能以root方式启动
+
+查看节点是什么启动
+
+![在这里插入图片描述](ElasticSearch学习.assets/20201231095534375.png)
+
+**解决方法**
+
+改变目录及其目录下所有文件的所有者为你自己的用户名
+
+```markdown
+chown -R yourname dirname
+
+# 比如我的
+chown -R yourname es_node1
+```
+
+重新启动ES，可以正常启动！
+
+
+
+
+
+#### 6、查看节点状态
+
+浏览器分别访问：
+
+```
+http://192.168.77.138:9201/
+http://192.168.77.138:9202/
+http://192.168.77.138:9203/
+```
+
+如果出现以下数据：
+
+#### 7、 查看集群健康
+
+如果你想要看集群的整体情况，你可以访问：
+
+http://192.168.47.128:9201/_cat/health?v
+
+![image-20210422165105205](ElasticSearch学习.assets/image-20210422165105205.png)
+
+#### 8、kiabana 连接 ES集群
+
+如果你之前连接过一台ES集群[为什么说一台也是集群呢？因为ES启动方式就是集群启动，只是集群数量为一台]，其实需要修改的地方都差不多
+
+进入kibana配置文件：
+
+```markdown
+vim kibana-6.8.0-linux-x86_64/config/kibana.yml
+
+```
+
+修改连接ES的地址为集群中的任意一台：
+
+```
+server.host: "192.168.47.128"
+elasticsearch.hosts: ["http://192.168.47.128:9201"]
+```
+
+#### 9、SpringBoot 连接ES集群
+
+如果你之前有用SpringBoot连接ES，这里的配置差不多，只是需要将连接地址改为所有的节点地址（防止其中某一台断掉不可用）
+
+```java
+@Configuration
+public class RestClientConfig extends AbstractElasticsearchConfiguration {
+
+    @Override
+    @Bean
+    public RestHighLevelClient elasticsearchClient() {
+        final ClientConfiguration clientConfiguration = ClientConfiguration.builder()
+            .connectedTo("192.168.47.128:9201","192.168.47.128:9202")  //===>与kibana客户端类型都是restful分格,都是连接9200端口
+            .build();
+        return RestClients.create(clientConfiguration).rest();
+    }
+
+}
+```
+

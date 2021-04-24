@@ -37,7 +37,8 @@
 ## 2.1 引入依赖
 
 ```xml
- <dependency>
+<!--mybatis-plus依赖-->
+<dependency>
    <groupId>com.baomidou</groupId>
    <artifactId>mybatis-plus-boot-starter</artifactId>
    <version>3.2.0</version>
