@@ -38,3 +38,16 @@ HTML,body,#app{
 </div>
 ```
 
+
+
+
+
+# [element-ui表格显示html格式]()
+
+```html
+<el-table-column type="String" label="内容" prop="tpl" width="580" align="center">
+          <template slot-scope="scope">
+                <p v-html='scope.row.tpl'></p>
+            </template>
+        </el-table-column>
+```

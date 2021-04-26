@@ -2469,6 +2469,7 @@ public void testFilterQuery() throws UnknownHostException {
 > spring-data(新版本推荐配置) RestHighLevelClient rest客户端 ElasticSearchRespositoy接口
 
 ```java
+1
 @Configuration
 public class RestClientConfig extends AbstractElasticsearchConfiguration {
 
@@ -2481,6 +2482,25 @@ public class RestClientConfig extends AbstractElasticsearchConfiguration {
             .build();
         return RestClients.create(clientConfiguration).rest();
     }
+
+}
+2
+@Configuration
+public class RestClientConfig extends AbstractElasticsearchConfiguration {
+
+    @Override
+    @Bean
+    public RestHighLevelClient elasticsearchClient() {
+        RestHighLevelClient client = new RestHighLevelClient(
+                RestClient.builder(
+                        new HttpHost("192.168.47.128", 9200, "http")
+
+                        /** 多个节点也是在当前地方配置 */
+//                        , new HttpHost("localhost", 9300, "http")
+                ));
+        return client;
+    }
+
 
 }
 ```

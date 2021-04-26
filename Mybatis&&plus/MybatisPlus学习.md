@@ -151,7 +151,7 @@ resultMap:String类型,用来指定XML配置中resultMap的id值
 常见属性:
 value:String类型,指定实体类中与表中对应的主键列名
 type:枚举类型,指定主键生成类型
-
+@TableId(type = IdType.AUTO)   设置主键id自增
 ```
 
 
