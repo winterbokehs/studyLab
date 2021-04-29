@@ -93,3 +93,14 @@ ps
 ：q   退出
 
 ：wq   保存并退出
+
+: qa!不保存退出
+
+# nginx
+
+```bash
+nginx -c /usr/local/nginx/conf/nginx.conf
+
+//安装路径nginx的路径
+```
+
