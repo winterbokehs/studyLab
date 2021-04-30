@@ -528,7 +528,7 @@ docker run -P 6379:6379 --name redis -d -P 6379:6379 -v redisdata:/data redis:5.
 
 4.修改redis配置文件,以配置文件方式启动
 注意:在当前/root /redisconf目录中存在redis. conf配置文件
-docker run -P 6380:6379 -v /root /redisconf: /usr/1ocal/etc/redis --name myredis -d redis:5. 0.10 redis-server /usr/local/etc/redis/redis . conf
+docker run -p 6380:6379 -v /root /redisconf: /usr/local/etc/redis --name myredis -d redis:5. 0.10 redis-server /usr/local/etc/redis/redis . conf
 
 
 
@@ -1019,8 +1019,8 @@ networks: #定义服务用到桥
 services :
   服务id:
     image: #使用镜像是谁 image:tag image image: @digest
-    container_name:#服务启动之后容器名称相当docker run之后的--name
-    ports:#用来指定容器与宿主机端口映射相当docker run之后的-p
+    container_name:#服务启动之后容器名称，相当docker run之后的--name
+    ports:#用来指定容器与宿主机端口映射，相当docker run之后的-p
       - "8080:8080"
     volumes:#用来指定容器中目录与宿主机目录进行数据卷映射docker run之后-v
       - /root/apps:容器内路径
@@ -1028,15 +1028,15 @@ services :
     networks: #用来指定容器使用的是哪个网桥docker run --network
       - ems(网桥名称自动创建)注意:一旦指定网桥必须通过network进行声明
     environment:#用来给容器中某些环境进行赋值操作
-      - MYSQL_ ROOT _PAS SWORD=root
-    env_ file: #用来给容器中某些环境进行賦值操作，将环境变量赋值转移到配置文件中
+      - MYSQL_ROOT_PASSWORD=root
+    env_file: #用来给容器中某些环境进行賦值操作，将环境变量赋值转移到配置文件中
       - mysql. env #文件中内容必须是MYSQL_ RO0T_ PAS SWORD=root
     comunand: redis-server /usr/redis/conf/redis.conf #用来覆盖容器启动默认指令
 healthcheck :
 #心跳机制
 test: ["CMD"， "cur1"， "-f"， "http: //localhost "]
 interval: 1m30s .
-t imeout: 10s
+timeout: 10s
 retries: 
     sysctls: #用来修改容器内系统的参数
        net.core.somaxconn=1024
@@ -1070,8 +1070,8 @@ services :
 services :
   demo:
     build:#启动服务时先将build命令中指定dockerfile打包成镜像,在运行该镜像
-      context: demo #指定上下文目录dockerfile所在目录
-      dockerfile: Dockerfile
+       context: demo #指定上下文目录dockerfile所在目录
+       dockerfile: Dockerfile
     container_name: demo
     ports: "8082: 8081"
     networks:
@@ -1090,7 +1090,7 @@ docker-compose up(指令)
 2.常用指令
 `1.up指令`
    作用:用来启动所有docker-compose服务
-   选项:-d后台启动所有服务
+   选项: -d 后台启动所有服务
 `2.down指令`
    作用:用来关闭所有docker-compose服务
 3. exec指令
@@ -1145,4 +1145,106 @@ ports:
 -"9000: 9000"
 
 ```
+
+## es_travel部署案例
+
+### 1 依赖地址改变
+
+> 将配置地址改成目的地址
+
+```properties
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.url=jdbc:mysql://192.168.47.128:3306/travel?useUnicode=true&useSSL=false&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+spring.datasource.username=root
+spring.datasource.password=599121412
+spring.datasource.type=com.alibaba.druid.pool.DruidDataSource
+server.port=8989
+# redis 配置
+spring.redis.database=0
+spring.redis.host=192.168.47.128
+spring.redis.port=6379
+```
+
+
+
+### 2  打jar包
+
+### 3 编写Dockerfile文件
+
+```dockerfile
+FROM java:8
+WORKDIR /es_travel
+ADD es_demo-0.0.1-SNAPSHOT.jar es_demo.jar
+EXPOSE 8989   # 暴露的端口要和上面的配置文件对应上
+ENTRYPOINT ["java","-jar"]
+CMD ["es_demo.jar"]
+```
+
+### 4 编写docker-compose.yml文件
+
+```yaml
+version: "3.8"
+services:
+  es_travel:
+    build:                #启动服务时先将build命令中指定Dockerfile打包成镜像,再运行该镜像
+       context: es_travel #指定上下文目录dockerfile所在目录
+       dockerfile: Dockerfile
+    container_name: es_travel
+    ports:
+      - "8989:8989"      # 暴露的端口要和Dockerfile中的一致
+    networks:
+      - es_travel       # 网桥一定要是同一个，才可以有进程间通信
+    depends_on:
+      - es
+      - mysql
+      - redis
+  es:
+    image: elasticsearch:6.8.0
+    container_name: es
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - /root/es/plugins:/usr/share/elasticsearch/plugins
+      - /root/es/data:/usr/share/elasticsearch/data
+    networks:
+      - es_travel
+  mysql:
+    image: mysql:5.5
+    container_name: mysql_es
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - mysqlconf:/etc/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=599121412
+    networks:
+      - es_travel
+  redis:
+   image: redis:5.0.10
+   container_name: redis_es
+   ports:
+     - "6379:6379"
+   volumes:
+     - redisconf:/usr/local/etc/redis
+   networks:
+     - es_travel
+
+
+volumes:
+  mysqldata:
+  mysqlconf:
+  redisconf:
+networks:
+  es_travel:
+```
+
+### 5 运行全部的镜像(docker-compose)
+
+```bash
+docker-compose up
+```
+
+
 

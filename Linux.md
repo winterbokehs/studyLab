@@ -104,3 +104,75 @@ nginx -c /usr/local/nginx/conf/nginx.conf
 //安装路径nginx的路径
 ```
 
+```markdown
+ 3.安装 nginx
+
+     nginx-1.1.1.tar.gz  上传到/home 目录下面
+
+     1) 解压 nginx
+
+       tar zxvf    nginx-1.1.1.tar.gz  解压 nginx 后 /home 下面会有nginx-1.1.1 文件夹
+
+      2 配置nginx
+
+       cd   nginx-1.1.1
+
+       ./configure --prefix=/usr/local/nginx --with-http_stub_status_module
+
+       3)make
+
+       在linux 中输入 make 命令后屏幕会生成一堆文件，不用去管它
+
+     4)安装
+
+       在linux 中输入 make install
+
+      5) 检查是否安装成功  
+
+         cd  /usr/local/nginx/sbin
+
+         ./nginx -t 
+
+    报错：Nginx: error while loading shared libraries: libpcre.so.1 ，就像项目缺少依赖包一样    
+
+    [ew69@SCLABHADOOP01 lib]$ cd /lib  
+
+    [ew69@SCLABHADOOP01 lib]$ ls *pcre*  
+
+    libpcre.so.0  libpcre.so.0.0.1   
+
+    添加软链接:
+
+    Shell代码  
+
+    [ew69@SCLABHADOOP01 lib]$ ln -s /lib/libpcre.so.0.0.1 /lib/libpcre.so.1
+
+     再次运行./nginx -t
+
+  结果显示：
+
+        nginx: the configuration file /usr/local/nginx/conf/nginx.conf syntax is ok
+
+        nginx: configuration file /usr/local/nginx/conf/nginx.conf test is successful
+
+说明nginx安装成功
+
+       6)启动nginx 
+
+          cd  /usr/local/nginx/sbin 目录下面 输入 ./nginx  启动 nginx
+
+       7 )检查是否启动成功
+
+      netstat  -ntlp|grep nginx    可以看到nginx已经启动成功了，占用80端口
+
+      ie 浏览器中输入 http://192.168.15.132（此处换成自己的ip）
+
+      发现网页无法访问，将防火墙关闭
+
+     /etc/init.d/iptables stop
+
+     关闭了防火墙以后，一切访问都正常, 可以看到
+
+Welcome to nginx!
+```
+
