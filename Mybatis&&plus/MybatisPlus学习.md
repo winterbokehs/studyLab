@@ -225,7 +225,7 @@ el: String类型,映射为原生 #{ ... } 逻辑,相当于写在 xml 里的 #{ .
         wrapper.like("name","%王%");  //带有 王  的
         //wrapper.likeLeft("name","%王");   //右边有  王 的
         
-        、、 wrapper.likeRight("name","王%");   //左边有  王 的
+        // wrapper.likeRight("name","王%");   //左边有  王 的
         List<Account> accounts = mapper.selectList(wrapper);
         System.out.println(accounts);
     }

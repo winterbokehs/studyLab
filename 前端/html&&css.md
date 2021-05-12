@@ -27,7 +27,7 @@ HTML,body,#app{
   background-image: url("../assets/loginBg.jpg");
   background-size: 100% 100%;
   background-position: center center;
-  overflow: auto;
+    //overflow: auto;//滚动条
   height: 100%;
 }
 ```
@@ -36,6 +36,14 @@ HTML,body,#app{
 <div class="login_container">
     
 </div>
+```
+
+
+
+# 固定背景
+
+```css
+<body background="bj.jpg" style="background-attachment:fixed";> 
 ```
 
 
@@ -50,4 +58,28 @@ HTML,body,#app{
                 <p v-html='scope.row.tpl'></p>
             </template>
         </el-table-column>
+```
+
+
+
+# 带参数跳转
+
+第一个页面
+
+```js
+//编辑博客，传入博客的id
+editBlog(id) {
+    this.$message.info("正在跳转");
+    location.href = 'editor.html?id='+id;
+},
+```
+
+跳转页面
+
+```js
+//获取BlogID
+var url = decodeURI(window.location.href);
+var argsIndex = url.split("?id=");
+var Blogid = argsIndex[1];
+console.log(Blogid)
 ```

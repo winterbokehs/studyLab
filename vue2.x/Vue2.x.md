@@ -28,13 +28,8 @@
 
 # 2.{ {  } }：插值表达式
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Vue 入门</title>
-</head>
-<body>
+
+
 
 ```html
 
@@ -493,13 +488,6 @@ v-text：显示文本
 > VM：ViewModel 监听器
 
 ```html
-<!DOCTYPE html>
-<html>
-
-<head>
-  <meta charset='utf-8'>
-  <title>v-model</title>
-</head>
 
 <body>
   <div id="app">

@@ -2602,10 +2602,12 @@ public class Emp {
         emp.setAge(23);
         emp.setAddress("asdaqweqwe");
         emp.setContent("氨基酸的空间安徽省");
-        emp.setBir(new Date());
+        emp.setBir(new Date());      //时间格式的储存要格外注意
         empRepository.save(emp);
-
     }
+
+
+
 ```
 
 #### 删除一条记录
@@ -2742,9 +2744,9 @@ public void testSearchPage() throws IOException {
     //查询请求
     SearchRequest searchRequest = new SearchRequest();
 
-    //查询条件
+    //查询条件，从第0条记录查询5条，动态查询的话要设置计算公式.from((currentPage - 1)*5)
     SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-    sourceBuilder.from(0).size(2).sort("age", SortOrder.ASC).query(QueryBuilders.matchAllQuery());
+    sourceBuilder.from(0).size(5).sort("age", SortOrder.ASC).query(QueryBuilders.matchAllQuery());
 
     //去哪个索引/类型查询
     searchRequest.indices("ems").types("emp").source(sourceBuilder);
@@ -2754,7 +2756,8 @@ public void testSearchPage() throws IOException {
 
     SearchHit[] hits = search.getHits().getHits();
     for (SearchHit hit : hits) {
-        //字符串格式展示
+        //字符串格式展示'
+
         System.out.println(hit.getSourceAsString());
     }
 }
@@ -2784,8 +2787,12 @@ public void testLight() throws IOException {
     builder.from(0).size(2)
         .sort("age", SortOrder.DESC)
         .highlighter(highlightBuilder)
+        //多字段查询
         .query(QueryBuilders.multiMatchQuery("小黑喜欢小红", "name", "content"));
-
+         //多字段查询
+         // .query(QueryBuilders.multiMatchQuery(name,"title","description"))
+         //单字段查询
+         //.query(QueryBuilders.matchQuery("tags",index));
     //从哪个索引/类型查找
     searchRequest.indices("ems").types("emp").source(builder);
 
@@ -2808,6 +2815,11 @@ public void testLight() throws IOException {
         emp.setAddress((String) s.getSourceAsMap().get("address"));
         emp.setAge((Integer) s.getSourceAsMap().get("age"));
 
+        
+        //时间格式的另外存储
+        emp.setBir(new SimpleDateFormat("yyyy-MM-dd").parse(hit.getSourceAsMap().get("bir").toString()));
+        
+        
         //==>高亮部分
         Map<String, HighlightField> highlightFields = s.getHighlightFields();
         if(highlightFields.containsKey("name")){

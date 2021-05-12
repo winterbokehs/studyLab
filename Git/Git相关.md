@@ -153,7 +153,7 @@ git push https://github.com/yxjgithub-png/git-demo.git master # 将master分支�
 
 2. git remote add 远程仓库地址别名(可以自定义,一般为origin)  远程仓库地址 # (查看当前远程地址的别名
 git remote -v )
-git remote add origin https://github.com/yxjgithub-png/git-demo.git # 如果不想使用地址形式，可以采用别名来代替。如果想直接使用git push，则可以采用步骤3
+git remote add origin https://github.com/winterbokehs/studyLab # 如果不想使用地址形式，可以采用别名来代替。如果想直接使用git push，则可以采用步骤3
 
 3. git push -u 远程仓库地址别名 分支名称
 git push origin master  # 推送远程分支
@@ -250,4 +250,8 @@ git clone是在没有本地仓库的基础上clone别人的东西，而git pull�
 ![在这里插入图片描述](Git相关.assets/20201217102052835.png)
 
 ![在这里插入图片描述](Git相关.assets/20201217102107185.png)
+
+
+
+
 

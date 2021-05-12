@@ -45,6 +45,7 @@ signed. JWTs can be signed using a secret (with the HMAC algorithm) or a public/
 - 3. 因为是基于cookie来进行用户识别的，cookie如果被截获， 用户就会很容易受到跨站请求伪造的攻击。
 
 - 4.在前后端分离系统中就更加痛苦  :  如下图所示
+
 - 也就是说前后端分离在应用解耦后增加了部署的复杂性。通常用户一次请求就要转发多次。如果用session 每次携带sessionid到服务器，服务器还要查询用户信息。同时如果用户很多。这些信息存储在服务器内存中，给服务器增加负担。还有就是CSRF (跨站伪造请求攻击)攻击，session是基于cookie进行用户识别的，cookie如果被截获， 用户就会很容易受到跨站请求伪造的攻击。还有就是sessionid就是一个特征值，表达的信息不够丰富。不容易扩展。而且如果你后端应用是多节点部署。那么就需要实现session共享机制。不方便集群应用。
 
 ![image-20210328143845561](jwt学习.assets/image-20210328143845561.png)
@@ -80,14 +81,17 @@ signed. JWTs can be signed using a secret (with the HMAC algorithm) or a public/
 # 4、jwt的结构是什么
 
 ## 1.令牌组成
+
 - 1.标头(Header)
 
 - 2.有效载荷(Payload)
 - 3.签名(Signature)
-因此，JWT通常如下所示:xxxxx . yyyy . zzzz      Header . Payload . Signature
+  因此，JWT通常如下所示:xxxxx . yyyy . zzzz      Header . Payload . Signature
+
 ## 2.Header
+
 - 标头通常由两部分组成:令牌的类型(即JWT) 和所使用的签名算法，例如HMAC SHA2 56或RSA。它会使用Base64 编码组成JWT结构的第一部分。
-  
+
   - 注意:Base64是- 种编码，也就是说， 它是可以被翻译回原来的样子来的。它并不是一种加密过程。
 
   ```json
@@ -117,12 +121,12 @@ signed. JWTs can be signed using a secret (with the HMAC algorithm) or a public/
   
 
 ## 4.Signature
+
 - 前面两部分都是使用Base64 进行编码的，即前端可以解开知道里面的信息。Signature需要使用编码后的header和payload
   以及我们提供的一一个密钥，然后使用header中指定的签名算法(HS256) 进行签名。签名的作用是保证JWT没有被篡改过
   HMACSHA256 (base64Ur1Encode(header) + "." + base64Ur1Encode(payload), secret);
   **签名目的**
   - 最后一步签名的过程，实际上是对头部以及负载内容进行签名，防止内容被窜改。如果有人对头部以及负载的内容解码之后进行修改，再进行编码，最后加上之前的签名组合形成新的JWT的话，那么服务器端会判断出新的头部和负载形成的签名和JWT附带上的签名是不一样的。如果要对新的头部和负载进行签名，在不知道服务器加密时用的密钥的话，得出来的签名也是不一样的。
-  
 
 **信息安全问题**
 
@@ -242,7 +246,6 @@ public class JWTUtil {
 ### 过滤器
 
 ```java
-
 import com.auth0.jwt.exceptions.AlgorithmMismatchException;
 import com.auth0.jwt.exceptions.InvalidClaimException;
 import com.auth0.jwt.exceptions.SignatureVerificationException;
@@ -311,7 +314,6 @@ public class InterceptorConfig implements WebMvcConfigurer {
 ### controller
 
 ```java
-
 import com.me.jwt.mapper.UserMapper;
 import com.me.jwt.pojo.User;
 import com.me.jwt.utils.JWTUtil;
@@ -364,4 +366,104 @@ public class UserController {
 }
 ```
 
-### pojo、mapper、JWTUtil。。。
+
+
+### pojo
+
+```java
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class User {
+    private int id;
+    private String name;
+    private String pwd;
+    private String salt;
+
+    //用户的身份
+    private String role;
+}
+
+```
+
+### mapper
+
+```xml
+@Mapper
+@Component
+public interface UserMapper {
+    /**
+     * 查询所有用户信息
+     * @return
+     */
+    public List<User> findAll();
+
+    /**
+     * 根据用户名查询信息
+     * @param name
+     * @return
+     */
+    public User findOne(String name);
+
+}
+        
+        
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.me.jwt.mapper.UserMapper">
+
+    <select id="findAll" resultType="User">
+        select * from user ;
+    </select>
+
+    <select id="findOne" resultType="User" parameterType="String">
+        select * from user where name = #{name};
+    </select>
+
+
+</mapper>
+```
+
+### JWTUtil
+
+```java
+public class JWTUtil {
+    private static final String SIGN = "ahj!@#*154";
+    /**
+     * 生成令牌token
+     */
+    public static String getToken(Map<String,String> map) {
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.DATE,3);//指定令牌的过期时间
+
+        //创建jwt  builder
+        JWTCreator.Builder builder = JWT.create();
+
+        //payload
+        map.forEach((k,v)->{
+            builder.withClaim(k,v);
+        });
+
+        String token = builder.withExpiresAt(calendar.getTime()).
+                                             sign(Algorithm.HMAC256(SIGN));//添加令牌的过期时间
+
+        return token;
+    }
+    /**
+     * 验证token
+     */
+    public static DecodedJWT checkJWT(String token){
+        return JWT.require(Algorithm.HMAC256(SIGN)).build().verify(token);
+    }
+}
+```
+
+
+
+```java
+
+```
