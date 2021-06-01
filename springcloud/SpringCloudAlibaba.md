@@ -333,7 +333,7 @@ spring.cloud.nacos.discovery.server-addr=${spring.cloud.nacos.server-addr}
 user.name=zhangsan123
 ```
 
-## 4、sentinel 流量卫兵
+## sentinel 流量卫兵
 
 ## 什么是sentinel
 

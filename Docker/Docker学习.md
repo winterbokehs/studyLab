@@ -532,6 +532,42 @@ docker run -p 6380:6379 -v /root /redisconf: /usr/local/etc/redis --name myredis
 
 
 
+**==docker-compose==文件启动**
+
+创建项目结构,
+
+复制redis.conf文件到conf中
+
+![img](Docker学习.assets/1985071-20200416152740844-2028479080.png)
+
+
+
+当你想要修改配置文件时，直接修改本地创建的配置文件即可，它会映射到容器内部的配置文件中去
+
+> ***注意***：配置文件的端口号，要与docker-compose文件的端口号一致
+
+```yaml
+version: '3'
+services:
+  redis:
+    image: redis:5.0.10
+    container_name: redis_stu
+    volumes:
+      - ./datadir:/data
+      - ./conf/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./logs:/logs
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"   #要一致
+
+```
+
+
+
+
+
+
+
 ### 3 安装Nginx
 
 ```markdown
@@ -562,6 +598,22 @@ docker cp nginx01(容器id|容器名称):/etc/nginx/nginx.conf 宿主机名录
 
 6 挂在nginx配置以及html到宿主机外部
 docker run --name nginx02 -v /root/nginx/nginx.conf:/etc/nginx/nginx.conf -v /root/nginx/html:/usr/share/nginx/html -p 80:80 -d nginx		
+
+docker-compose.yml
+  nginx:
+    image: nginx:1.9.9
+    container_name: nginx_blog
+    ports:
+      - "80:80"
+    volumes:
+      - nginx:/etc/nginx/
+      - nginx.html:/usr/share/nginx/html
+      - nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - myblog
+
+
+
 
 ```
 
@@ -1007,7 +1059,7 @@ volumes:     # 声明上面服务所使用的自动创建的卷名
     external: #使用自定义卷名
       false   #trne确定使用指定卷名注意:一旦使用外部自定义卷名启动服务之.前必须手动创建
 
-networks: #定义服务用到桥
+networks: #定义服务用到桥，最外顶格写
     hello:       #定义上面的服务用到的网桥名称默认创建就是bridge
 
 
